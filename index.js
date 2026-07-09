@@ -19,10 +19,11 @@ async function connectToWhatsApp() {
 
     sock.ev.on('creds.update', saveCreds);
 
+    // পেয়ারিং কোড জেনারেটর
     if (!sock.authState.creds.registered) {
         await delay(3000);
         const code = await sock.requestPairingCode('8801727671230');
-        console.log(`✅ পেয়ারিং কোড: ${code}`);
+        console.log(`\n\n✅ পেয়ারিং কোড: ${code}\n\n`);
     }
 
     let userSteps = {};
@@ -55,6 +56,8 @@ async function connectToWhatsApp() {
         } else if (text.includes('buy panel')) {
             userSteps[from] = { step: 'name' };
             await sock.sendMessage(from, { text: "💰 প্যানেল ৩৫০ টাকা। বিকাশ নম্বর: 01727671230। টাকা পাঠিয়ে আপনার নাম লিখুন।" });
+        } else if (text.includes('review')) {
+            await sock.sendMessage(from, { text: "আমাদের প্যানেলের রিভিউ ভিডিওগুলো দেখুন: 🎥\n\n💎 BRCs প্যানেল: https://vt.tiktok.com/ZSCEbxUM9/\n🏆 টুর্নামেন্ট প্যানেল: https://vt.tiktok.com/ZSCEbSDUG/" });
         }
     });
 }
