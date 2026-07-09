@@ -1,61 +1,54 @@
-Const express = require('express');
-const app = express();
-const { makeWASocket, useMultiFileAuthState, delay } = require('@whiskeysockets/baileys');
+// একটি সেট তৈরি করা যা বোটকে পজ রাখবে
+let pausedChats = new Set();
 
-const PORT = process.env.PORT || 3000;
-const ADMIN_NUMBER = '8801727671230@s.whatsapp.net';
-const PANEL_LINK = 'https://t.me/+oe_rcewUi142ZmNl';
+sock.ev.on('messages.upsert', async ({ messages }) => {
+    const msg = messages[0];
+    if (!msg.message) return;
 
-app.get('/', (req, res) => res.send('Bot is running! ⚡'));
-app.listen(PORT);
+    const from = msg.key.remoteJid;
+    const isFromMe = msg.key.fromMe; // আপনি নিজে মেসেজ পাঠালে
+    const rawText = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+    const command = rawText.trim().toLowerCase();
 
-async function connectToWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const sock = makeWASocket({ 
-        auth: state, 
-        printQRInTerminal: false,
-        browser: ["Ridoy Raj Bot", "Chrome", "1.0.0"] 
-    });
+    const footer = "\n\n━━━━━━━━━━━━━━━━━━\n📌 *মেনুতে ফিরতে টাইপ করুন:* `Menu`";
 
-    sock.ev.on('creds.update', saveCreds);
-
-    if (!sock.authState.creds.registered) {
-        await delay(3000);
-        const code = await sock.requestPairingCode('8801708071532');
-        console.log(`✅ পেয়ারিং কোড: ${code}`);
+    // ১. মেনু লিখলে বোট আবার সচল হবে
+    if (command === 'menu') {
+        pausedChats.delete(from); // পজ মোড বন্ধ
+        await sock.sendMessage(from, { text: "✨ *আসসালামু আলাইকুম!* ✨\n\nRIDOY RAJ FF HOLOGRAM PANEL-এ স্বাগতম। 🎮\nআপনাকে আজ কীভাবে সাহায্য করতে পারি? 👇\n\n📋 *প্যানেল:* `Panel`\n👤 *সাপোর্ট:* `Support`" + footer });
+        return;
     }
 
-    let userSteps = {};
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        const msg = messages[0];
-        if (!msg.message || msg.key.fromMe) return;
-        const from = msg.key.remoteJid;
-        const text = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").toLowerCase();
-        
-        if (from === ADMIN_NUMBER && text.startsWith('/approve')) {
-            const targetJid = text.split(' ')[1].includes('@s.whatsapp.net') ? text.split(' ')[1] : text.split(' ')[1] + '@s.whatsapp.net';
-            await sock.sendMessage(targetJid, { text: `🎉 অভিনন্দন! আপনার পেমেন্ট এপ্রুভ হয়েছে।\n\nপ্যানেল লিংক: ${PANEL_LINK} 📥` });
-            await sock.sendMessage(from, { text: "✅ লিংক পাঠানো হয়েছে।" });
-            return;
-        }
+    // ২. আপনি (অ্যাডমিন) মেসেজ পাঠালে বোট পজ হয়ে যাবে
+    if (isFromMe) {
+        pausedChats.add(from); // বোট পজ (বট আর কথা বলবে না)
+        await sock.sendMessage(from, { text: rawText + footer });
+        return;
+    }
 
-        if (userSteps[from]?.step === 'name') {
-            userSteps[from] = { name: text, step: 'bkash' };
-            await sock.sendMessage(from, { text: "✅ দারুণ! এবার আপনার বিকাশের লাস্ট ৪টি সংখ্যা লিখুন।" });
-        } else if (userSteps[from]?.step === 'bkash') {
-            userSteps[from].bkash = text;
-            userSteps[from].step = 'tid';
-            await sock.sendMessage(from, { text: "💳 পেমেন্ট প্রায় শেষ! এবার আপনার বিকাশ ট্রানজেকশন আইডি লিখুন।" });
-        } else if (userSteps[from]?.step === 'tid') {
-            await sock.sendMessage(ADMIN_NUMBER, { text: `🔔 পেমেন্ট রিকোয়েস্ট!\n👤 ${userSteps[from].name}\n📱 ${from}\n🔢 ${text}\n\nলিংক পাঠাতে লিখুন: /approve ${from}` });
-            await sock.sendMessage(from, { text: "🎉 আপনার তথ্য জমা হয়েছে! এডমিন চেক করছেন। ⏳" });
-            delete userSteps[from];
-        } else if (text.includes('hi') || text.includes('menu')) {
-            await sock.sendMessage(from, { text: "আসসালামু আলাইকুম! 🌟\n১. Help 🛠️\n২. Review 🎥\n৩. Buy Panel 💎" });
-        } else if (text.includes('buy panel')) {
-            userSteps[from] = { step: 'name' };
-            await sock.sendMessage(from, { text: "💰 প্যানেল ৩৫০ টাকা। বিকাশ নম্বর: 01727671230। টাকা পাঠিয়ে আপনার নাম লিখুন।" });
-        }
-    });
-}
-connectToWhatsApp();
+    // ৩. যদি চ্যাট পজ থাকে, তবে বট কোনো অটো-রিপ্লাই দিবে না
+    if (pausedChats.has(from)) {
+        return; 
+    }
+
+    // ৪. সাধারণ কমান্ড লজিক (বট সচল থাকলে)
+    if (command === 'hi' || command === 'hello' || command === 'start') {
+        await sock.sendMessage(from, { text: "✨ *আসসালামু আলাইকুম!* ✨\n\nRIDOY RAJ FF HOLOGRAM PANEL-এ স্বাগতম। 🎮\nআমি বসের ডিজিটাল অ্যাসিস্ট্যান্ট! কীভাবে সাহায্য করতে পারি? 👇\n\n📋 *প্যানেল:* `Panel`\n👤 *সাপোর্ট:* `Support`" + footer });
+    } 
+    else if (command === 'panel') {
+        await sock.sendMessage(from, { text: "🛡️ *প্যানেলসমূহ:* 🛡️\n\n✅ অ্যান্টি-ব্যান ও অ্যান্টি-ব্ল্যাকলিস্ট\n✅ মেইন আইডি ১০০% সেফ\n\n💰 *প্রাইস লিস্ট:* 💰\n🏆 টুর্নামেন্ট প্যানেল: ৩৫০ টাকা\n💎 BRCS প্যানেল: ৩০০ টাকা\n💥 *অফার:* দুটি ৪০০ টাকা!\n\n🎥 *রিভিউ ভিডিও:* `Tournament` / `Brcs`\n🛒 *ক্রয় করতে:* `Buy`" + footer });
+    }
+    else if (command === 'tournament') {
+        await sock.sendMessage(from, { text: "🏆 *টুর্নামেন্ট প্যানেল রিভিউ ভিডিও:* 🏆\n\nhttps://vt.tiktok.com/ZSCEKFmpx/" + footer });
+    }
+    else if (command === 'brcs') {
+        await sock.sendMessage(from, { text: "💎 *BRCS প্যানেল রিভিউ ভিডিও:* 💎\n\nhttps://vt.tiktok.com/ZSCEwcvDU/" + footer });
+    }
+    else if (command === 'buy') {
+        await sock.sendMessage(from, { text: "💳 *পেমেন্ট পদ্ধতি:* 💳\n\nবিকাশ নম্বর: `01727671230`\n\nপেমেন্ট সম্পন্ন করে নিচের তথ্যগুলো পাঠান:\n১. আপনার নাম:\n২. বিকাশ লাস্ট ৪ ডিজিট:\n৩. ট্রানজেকশন আইডি:" + footer });
+    }
+    else if (command === 'support') {
+        pausedChats.add(from); // সাপোর্ট মানেই পজ মোড
+        await sock.sendMessage(from, { text: "✅ *সাপোর্ট মোড সক্রিয়!* ✅\n\nআমি আপনাকে অ্যাডমিনের সাথে কানেক্ট করে দিচ্ছি। আপনি এখন মেসেজ করুন, অ্যাডমিন সরাসরি কথা বলছেন। ⏳" });
+    }
+});
