@@ -22,7 +22,7 @@ async function connectToWhatsApp() {
     // পেয়ারিং কোড জেনারেটর
     if (!sock.authState.creds.registered) {
         await delay(3000);
-        const code = await sock.requestPairingCode('8801727671230');
+        const code = await sock.requestPairingCode('8801708071532');
         console.log(`\n\n✅ পেয়ারিং কোড: ${code}\n\n`);
     }
 
